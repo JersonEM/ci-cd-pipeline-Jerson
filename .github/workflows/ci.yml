@@ -34,7 +34,7 @@ jobs:
           mkdir build
           echo "<h1>Deploy exitoso</h1>" > build/index.html
       - name: Subir artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-artifact
           path: build/
@@ -44,13 +44,33 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v4
+
       - name: Descargar build
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-artifact
           path: public/
+
+      - name: Verificar contenido descargado (opcional)
+        run: ls -l public/
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: public/
+  notify-on-failure:
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: failure()
+    steps:
+      - name: Crear issue en caso de error
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: "ERROR❌: Fallo en el despliegue de staging",
+              body: "Hubo un error en el job de deploy del pipeline.\nRevisar: https://github.com/${context.repo.owner}/${context.repo.repo}/actions"
+            });
